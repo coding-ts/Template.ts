@@ -5,19 +5,19 @@ import { isThenable } from '@sapphire/utilities';
 import { ButtonBuilder, ButtonStyle, codeBlock, Message } from 'discord.js';
 import { inspect, promisify } from 'node:util';
 import ProcessManager from '../../utils/ProcessManager';
-import regexs from '../../utils/regexs';
 import ts from 'typescript';
 import HLJS from '../../utils/HLJS';
 import { ChildProcessWithoutNullStreams, spawn, exec } from 'node:child_process';
+import prettify from '../../utils/prettify';
 
 export class Eval extends Subcommand {
 	public constructor(context: Subcommand.Context, options: Subcommand.Options) {
 		super(context, {
 			...options,
 			description: 'Evaluate any Typescript/Javascript script',
-			flags: ['a', 's', 'h', 'd'],
+			flags: ['a', 'async', 's', 'silent', 'h', 'hidden', 'showHidden', 'd', 'delete'],
 			name: 'eval',
-			options: ['d'],
+			options: ['d', 'depth'],
 			preconditions: ['DevsOnly'],
 			subcommands: [
 				{
@@ -61,8 +61,8 @@ export class Eval extends Subcommand {
 			message.react('❌');
 			return error.stack ?? error.toString();
 		}) as string;
-		res = this.clean(res);
-		const msg = new ProcessManager(message, res, { language: type });
+		if (type == 'html') res = prettify(res);
+		const msg = new ProcessManager(message, this.clean(res), { language: type });
 		msg.initialize();
 		msg.addAction([
 			{
@@ -142,7 +142,7 @@ export class Eval extends Subcommand {
 		await message.react(result.success ? '✅' : '❌');
 		if (args.getFlags('delete', 'del')) message.delete();
 		if (args.getFlags('silent', 's')) return;
-		const output = result.success ? codeBlock('js', result.result) : `**ERROR**: ${codeBlock('bash', result.result)}`;
+		const output = result.result;
 		const res = new ProcessManager(message, output, {
 			noCode: true,
 			pre: {
@@ -186,9 +186,8 @@ export class Eval extends Subcommand {
 		await message.react(result.success ? '✅' : '❌');
 		if (args.getFlags('delete', 'del')) message.delete();
 		if (args.getFlags('silent', 's')) return;
-		const output = result.success ? codeBlock('js', result.result) : `**ERROR**: ${codeBlock('bash', result.result)}`;
+		const output = result.result;
 		const res = new ProcessManager(message, output, {
-			noCode: true,
 			pre: {
 				texts: result.success ? [] : ['**ERROR**:'],
 			},
@@ -225,11 +224,6 @@ export class Eval extends Subcommand {
 			.replaceAll('```', '\\`\\`\\`')
 			.replaceAll(dir.join('\\'), '...\\user');
 	}
-	private escapeCB(parameter: string): string {
-		const parser = regexs.codeBlockRegex;
-		if (parser.test(parameter)) return parser.exec(parameter)?.[2] as string;
-		return parameter;
-	}
 	private async eval(
 		message: Message,
 		script: string,
@@ -258,9 +252,8 @@ export class Eval extends Subcommand {
 				showHidden: flags.showHidden,
 			});
 		}
-		result = this.clean(result);
 		return {
-			result,
+			result: this.clean(result),
 			success,
 			type,
 		};

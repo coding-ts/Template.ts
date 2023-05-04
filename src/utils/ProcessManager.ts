@@ -2,6 +2,7 @@ import { codeBlock } from '@sapphire/utilities';
 import { Awaitable, BaseGuildTextChannel, InteractionCollector, Message, ActionRowBuilder, ButtonBuilder, User, ButtonInteraction, ComponentType, APIButtonComponentWithCustomId } from 'discord.js';
 import type EClient from '../structures/EClient';
 import splitMessage from './splitMessage';
+import regexs from './regexs';
 
 export default class ProcessManager {
 	target: BaseGuildTextChannel;
@@ -133,10 +134,15 @@ export default class ProcessManager {
 		this.message.edit({ components: [actionRow] });
 	}
 	private genText() {
-		return this.options?.noCode && this.splitted.length < 2 ? `${this.splitted[this.page - 1]}` : `${codeBlock(this.options?.language as string, this.splitted[this.page - 1])}\nPage ${this.page}/${this.splitted.length}\n`;
+		return this.splitted.length < 2 ? `${this.splitted[this.page - 1]}` : `${this.splitted[this.page - 1]}\nPage ${this.page}/${this.splitted.length}\n`;
 	}
 	private splitContent() {
-		return splitMessage(this.content, { maxLength: this.limit, char: [new RegExp(`.{1,${this.limit}}`, 'g'), '\n'] as RegExp[], prepend: '', append: '' });
+		return splitMessage(this.content, { maxLength: this.limit, char: [new RegExp(`.{1,${this.limit}}`, 'g'), '\n'] as RegExp[], prepend: '', append: '' }).flatMap(e => codeBlock(this.options?.language as string, e));
+	}
+	private escapeCB(parameter: string): string {
+		const parser = regexs.codeBlockRegex;
+		if (parser.test(parameter)) return parser.exec(parameter)?.[2] as string;
+		return parameter;
 	}
 }
 
