@@ -1,23 +1,22 @@
 import type { Args } from '@sapphire/framework';
 import { Subcommand } from '@sapphire/plugin-subcommands';
+import { ButtonBuilder, ButtonStyle, Message, codeBlock } from 'discord.js';
+import { inspect, promisify } from 'node:util';
+import HLJS from '../../utils/HLJS';
+import ProcessManager from '../../utils/ProcessManager';
 import Type from '@sapphire/type';
 import { isThenable } from '@sapphire/utilities';
-import { ButtonBuilder, ButtonStyle, codeBlock, Message } from 'discord.js';
-import { inspect, promisify } from 'node:util';
-import ProcessManager from '../../utils/ProcessManager';
+import { spawn, ChildProcessWithoutNullStreams, exec } from 'node:child_process';
 import ts from 'typescript';
-import HLJS from '../../utils/HLJS';
-import { ChildProcessWithoutNullStreams, spawn, exec } from 'node:child_process';
-import prettify from '../../utils/prettify';
 
 export class Eval extends Subcommand {
 	public constructor(context: Subcommand.Context, options: Subcommand.Options) {
 		super(context, {
 			...options,
-			description: 'Evaluate any Typescript/Javascript script',
-			flags: ['a', 'async', 's', 'silent', 'h', 'hidden', 'showHidden', 'd', 'delete'],
 			name: 'eval',
-			options: ['d', 'depth'],
+			description: 'Execute custom Typescript/Javascript code within the bot\'s environment',
+			flags: ['async', 'silent', 'hidden', 'delete'],
+			options: ['depth'],
 			preconditions: ['DevsOnly'],
 			subcommands: [
 				{
@@ -44,7 +43,7 @@ export class Eval extends Subcommand {
 		const url = await args.pick('string');
 		let type = '';
 		const parse = promisify(JSON.parse);
-		let res = await fetch(url).then(async r => {
+		const res = await fetch(url).then(async r => {
 			const text = await r.text();
 			message.react('✅');
 			return parse(text)
@@ -61,7 +60,6 @@ export class Eval extends Subcommand {
 			message.react('❌');
 			return error.stack ?? error.toString();
 		}) as string;
-		if (type == 'html') res = prettify(res);
 		const msg = new ProcessManager(message, this.clean(res), { language: type });
 		msg.initialize();
 		msg.addAction([
@@ -178,14 +176,14 @@ export class Eval extends Subcommand {
 			message,
 			script,
 			{
-				async: args.getFlags('async', 'a'),
-				depth: parseInt((args.getOption('depth', 'd') ?? '2') as unknown as string),
-				showHidden: args.getFlags('hidden', 'h'),
+				async: args.getFlags('async'),
+				depth: parseInt((args.getOption('depth') ?? '2') as unknown as string),
+				showHidden: args.getFlags('hidden'),
 			},
 		);
 		await message.react(result.success ? '✅' : '❌');
-		if (args.getFlags('delete', 'del')) message.delete();
-		if (args.getFlags('silent', 's')) return;
+		if (args.getFlags('delete')) message.delete();
+		if (args.getFlags('silent')) return;
 		const output = result.result;
 		const res = new ProcessManager(message, output, {
 			pre: {

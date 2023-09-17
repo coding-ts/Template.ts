@@ -6,12 +6,13 @@ export class Ping extends Command {
 		super(context, {
 			...options,
 			name: 'ping',
-			description: 'Get the client\'s latency',
+			description: 'Retrieve the client\'s latency',
 		});
 	}
 	public async messageRun(message: Message) {
 		const msg = await message.channel.send('Ping?');
 		return msg.edit({
+			content: 'Pong',
 			embeds: [
 				new EmbedBuilder()
 					.setAuthor({

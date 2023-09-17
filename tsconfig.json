@@ -13,6 +13,7 @@
 		"preserveConstEnums": false,
 		"newLine": "crlf",
 		"ignoreDeprecations": "5.0",
+		"importsNotUsedAsValues": "error",
 	},
 	"include": [
 		"src"

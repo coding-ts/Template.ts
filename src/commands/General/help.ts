@@ -1,192 +1,262 @@
 import { Args, Command } from '@sapphire/framework';
 import type { Subcommand } from '@sapphire/plugin-subcommands';
-import { Message, ActionRowBuilder, EmbedBuilder, StringSelectMenuBuilder, ComponentType } from 'discord.js';
-import { readdirSync } from 'node:fs';
-import type Client from '../../structures/EClient';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, EmbedBuilder, Message, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } from 'discord.js';
 
 export class Help extends Command {
 	public constructor(context: Command.Context, options: Command.Options) {
 		super(context, {
 			...options,
 			name: 'help',
-			description: 'Display the bot\'s help menu.',
-			aliases: ['h'],
+			aliases: ['h', 'hp'],
+			description: 'Display the bot\'s help menu',
 		});
 	}
 	public async messageRun(message: Message, args: Args) {
-		const arg = await args.rest('string').catch(() => null);
-		if (!arg) {
-			const sm = new StringSelectMenuBuilder()
-				.setPlaceholder('Choose a category to get more information about')
-				.setCustomId('sm');
-			let embed = new EmbedBuilder()
-				.setTitle('Help')
-				.setDescription(`My current prefixes are ${(this.container.client as Client)._config.prefix.map(prefix => `\`${prefix}\``).join(', ')}. Type \`${(this.container.client as Client)._config.prefix[0]}help [command]\` to get information about a specific command.`)
-				.setAuthor({
-					name: `${this.container.client.user?.username} Commands`,
-					iconURL: this.container.client.user?.avatarURL() as string,
+		const query = await args.pick('string').then(value => value.toLowerCase()).catch(() => null);
+		if (query) {
+			const command = this.container.stores.get('commands').get(query as unknown as string);
+			if (!command) {
+				return message.reply({
+					embeds: [
+						new EmbedBuilder()
+							.setColor(message.client._config.color.error)
+							.setDescription(`The command \`${query.length > 10 ? `${query.slice(0, 10)}...` : query}\` does not exist.`)
+							.setFooter({
+								text: `${message.author.username} [${message.author.globalName}]`,
+								iconURL: message.author.avatarURL() as string,
+							})
+							.setTimestamp(new Date()),
+					],
+				});
+			}
+			const embed = new EmbedBuilder()
+				.setColor(message.client._config.color.default)
+				.setFields({
+					name: 'Description',
+					value: `・${command.description}`,
+				}, {
+					name: 'Full category',
+					value: `・${command.fullCategory.join(' > ')}`,
 				})
-				.setColor(message.member?.displayColor as number)
 				.setFooter({
-					text: `${this.container.stores.get('commands').size} total commands`,
+					text: `${message.author.username} [${message.author.globalName}]`,
+					iconURL: message.author.avatarURL() as string,
 				})
-				.setThumbnail(message.guild?.iconURL() as string);
-			const categories = readdirSync(
-				'./dist/commands',
-				{ withFileTypes: true },
-			)
-				.filter(folder => folder.isDirectory())
-				.map(folder => folder.name);
-			const categoriesDesc: string[] = [];
-			categories.forEach(f => {
-				categoriesDesc.push(f);
-				const size = readdirSync(`./dist/commands/${f}`).filter(file => file.endsWith('.js')).length;
-				sm.addOptions([
-					{
-						label: f,
-						description: `${f} commands [${size}]`,
-						value: f,
-					},
-				]);
-			});
-			embed.addFields({
-				name: 'Categories',
-				value: categoriesDesc.map(c => `・${c} commands`).join('\n'),
-				inline: true,
-			}, {
-				name: 'Latest Update',
-				value: `**Added \`${this.name}\` command**\n${this.description}`,
-				inline: true,
-			});
-			const msg = await message.reply({
+				.setTitle(`${query} command`)
+				.setTimestamp(new Date());
+			const generalButton = new ButtonBuilder()
+				.setCustomId('general')
+				.setLabel('General')
+				.setStyle(ButtonStyle.Success)
+				.setDisabled(true);
+			const row = new ActionRowBuilder<ButtonBuilder>()
+				.addComponents(generalButton);
+			const aliasButton = new ButtonBuilder()
+				.setCustomId('alias')
+				.setLabel(command.aliases.length === 1 ? 'Alias' : 'Aliases')
+				.setStyle(ButtonStyle.Secondary);
+			const subcommandButton = new ButtonBuilder()
+				.setCustomId('subcommand')
+				.setLabel(`Subcommand${(command as Subcommand).options.subcommands?.length === 1 ? '' : 's'}`)
+				.setStyle(ButtonStyle.Secondary);
+			if (command.aliases.length) row.addComponents(aliasButton);
+			if ((command as Subcommand).options.subcommands) row.addComponents(subcommandButton);
+			let msg: Message;
+			return (msg = await message.reply({
 				embeds: [embed],
-				components: [
-					new ActionRowBuilder<StringSelectMenuBuilder>()
-						.setComponents(sm),
-				],
-			});
-			const collector = msg.createMessageComponentCollector({
-				filter: interaction => {
-					interaction.deferUpdate();
-					if (interaction.componentType !== ComponentType.StringSelect) return false;
-					if (interaction.customId !== 'sm') return false;
-					if (interaction.user.id !== message.author.id) return false;
+				components: row.components.length ? [row] : [],
+			})).createMessageComponentCollector({
+				componentType: ComponentType.Button,
+				filter: (interaction) => {
+					if (interaction.user.id != message.author.id) {
+						interaction.reply({
+							embeds: [
+								new EmbedBuilder()
+									.setColor(message.client._config.color.error)
+									.setDescription('You can not use this button as you are not the one who requested this menu.')
+									.setFooter({
+										text: `${interaction.user.username} [${interaction.user.globalName}]`,
+										iconURL: interaction.user.avatarURL() as string,
+									})
+									.setTimestamp(new Date()),
+							],
+							ephemeral: true,
+						});
+						return false;
+					}
 					return true;
 				},
-				time: 10 * 60 * 1000,
-			});
-			collector.on('collect', i => {
-				if (!i.isStringSelectMenu()) return;
-				const selected = i.values[0];
-				const em = new EmbedBuilder().setTitle(`${selected} commands`);
-				let y = 0;
-				readdirSync(`./dist/commands/${selected}`).filter(f => f.endsWith('.js')).forEach(f => {
-					const cmdName = f.toLowerCase().split('.')[0];
-					const cmdStore = this.container.stores.get('commands').get(cmdName) as Subcommand;
-					if (cmdStore?.options.subcommands) {
-						cmdStore.options.subcommands.forEach(sc => {
-							em.addFields({
-								name: `${(this.container.client as Client)._config.prefix[0]}${cmdStore.name} ${sc.name}`,
-								value: cmdStore.description,
-							});
-							++y;
-						});
-					}
-					else {
-						em.addFields({
-							name: `${(this.container.client as Client)._config.prefix[0]}${cmdStore?.name}`,
-							value: cmdStore?.description as string,
-						});
-						++y;
-					}
-				});
-				em.setFooter({ text: `${y} ${selected} commands` });
-				embed = em;
-				msg.edit({
-					embeds: [em],
-					components: [
-						new ActionRowBuilder<StringSelectMenuBuilder>()
-							.addComponents(sm),
-					],
-				});
-			});
-
-			collector.on('end', () => {
-				msg.edit({
-					embeds: [embed],
-					components: [
-						new ActionRowBuilder<StringSelectMenuBuilder>()
-							.addComponents(sm.setDisabled(true)),
-					],
-				});
-			});
-			return;
-		}
-		const cmd = this.container.stores.get('commands').get(arg.toLowerCase()) as Subcommand;
-		if (!cmd) {
-			return message.reply({
-				embeds: [
-					{
-						description: `No command called **\`${arg}\`** found.`,
-						color: message.member?.displayColor,
-						footer: {
-							text: `Type ${(this.container.client as Client)._config.prefix[0]}help to display the bot's help menu`,
-						},
-					},
-				],
-			});
-		}
-		const cmdName = cmd.name.replace(cmd.name[0], cmd.name[0].toUpperCase());
-		let category;
-		readdirSync('./dist/commands').forEach(folder => {
-			const dir = readdirSync(`./commands/${folder}`);
-			for (const file of dir) {
-				if (cmd.name === file.split('.')[0]) {
-					category = folder;
-					break;
+				time: 5 * 60 * 1000,
+			}).on('collect', async interaction => {
+				if (interaction.customId === 'general') {
+					generalButton.setStyle(ButtonStyle.Success).setDisabled(true);
+					const generalRow = new ActionRowBuilder<ButtonBuilder>()
+						.addComponents(generalButton);
+					if (command.aliases.length) generalRow.addComponents(aliasButton.setStyle(ButtonStyle.Secondary).setDisabled(false));
+					if ((command as Subcommand).options.subcommands) generalRow.addComponents(subcommandButton.setStyle(ButtonStyle.Secondary).setDisabled(false));
+					interaction.update({
+						embeds: [embed],
+						components: [generalRow],
+					});
 				}
-			}
-		});
-		const embeds = [
-			{
-				title: `${cmdName} command`,
-				color: message.member?.displayColor as number,
-				fields: [
-					{
-						name: '・Description',
-						value: cmd.description,
-					},
-					{
-						name: cmd.aliases.length > 1 ? '・Aliases' : '・Alias',
-						value: cmd.aliases.map(a => `\`${a}\``).join(', '),
-					},
-				],
-				footer: {
-					text: `Category・${category}`,
-				},
-			},
-		];
-		if (cmd.options.subcommands) {
-			let i = 1;
-			embeds[0].fields[3] = {
-				name: 'Subcommands',
-				/* @ts-expect-error access private property */
-				value: cmd.subCommands.entries.map((s: SubCommandEntry) => `${i++}. \`${s.input}\``).join('\n'),
-			};
+				else if (interaction.customId === 'alias') {
+					aliasButton.setStyle(ButtonStyle.Success).setDisabled(true);
+					interaction.update({
+						embeds: [
+							new EmbedBuilder()
+								.setColor(message.client._config.color.default)
+								.setDescription(`・${command.aliases.map(alias => `\`${alias}\``).join(', ')}`)
+								.setFooter({
+									text: `${message.author.username} [${message.author.globalName}]`,
+									iconURL: message.author.avatarURL() as string,
+								})
+								.setTitle(`Alias${command.aliases.length === 1 ? '' : 'es'} for \`${query}\``)
+								.setTimestamp(new Date()),
+						],
+						components: [
+							new ActionRowBuilder<ButtonBuilder>()
+								.setComponents(
+									(command as Subcommand).options.subcommands?.length
+										? [generalButton.setStyle(ButtonStyle.Secondary).setDisabled(false), aliasButton, subcommandButton.setStyle(ButtonStyle.Secondary).setDisabled(false)]
+										: [generalButton.setStyle(ButtonStyle.Secondary).setDisabled(false), aliasButton],
+								),
+						],
+					});
+				}
+				else {
+					subcommandButton.setStyle(ButtonStyle.Success).setDisabled(true);
+					interaction.update({
+						embeds: [
+							new EmbedBuilder()
+								.setColor(message.client._config.color.default)
+								.setFields(
+									(command as Subcommand).parsedSubcommandMappings.map(subcommand => {
+										return {
+											name: subcommand.name,
+											value: `・${command.description}`,
+										};
+									}),
+								),
+						],
+						components: [
+							new ActionRowBuilder<ButtonBuilder>()
+								.setComponents(
+									command.aliases.length
+										? [generalButton.setStyle(ButtonStyle.Secondary).setDisabled(false), aliasButton.setStyle(ButtonStyle.Secondary).setDisabled(false), subcommandButton]
+										: [generalButton.setStyle(ButtonStyle.Secondary).setDisabled(false), subcommandButton],
+								),
+						],
+					});
+				}
+			}).on('end', () => {
+				row.components.forEach(component => component.setDisabled(true));
+				msg.edit({
+					components: [row],
+				});
+			});
 		}
-		return message.reply({
+		const categories = new Array<string>();
+		const categoriesMap = new Map<string, number>();
+		let totalCommandCount = 0;
+		this.container.stores.get('commands').forEach(command => {
+			if (!categories.includes(command.fullCategory[0])) categories.push(command.fullCategory[0]);
+			const commandCount = (command as Subcommand).options.subcommands?.length ?? 1;
+			totalCommandCount += commandCount;
+			categoriesMap.set(command.fullCategory[0], categoriesMap.get(command.fullCategory[0]) ? categoriesMap.get(command.fullCategory[0])! + commandCount : commandCount);
+		});
+		categories.sort();
+		let msg: Message;
+		const row = new ActionRowBuilder<StringSelectMenuBuilder>()
+			.addComponents(
+				new StringSelectMenuBuilder()
+					.setCustomId('selectmenu')
+					.setPlaceholder('Select a category to get more information on')
+					.setOptions(
+						categories.map(
+							category => new StringSelectMenuOptionBuilder()
+								.setDescription(`${categoriesMap.get(category)} available commands`)
+								.setLabel(category)
+								.setValue(category),
+						),
+					)
+			);
+		return (msg = await message.reply({
 			embeds: [
 				new EmbedBuilder()
-					.setColor(message.member?.displayColor as number)
-					.setFields({
-						name: '・Description',
-						value: cmd.description,
-					},
-					{
-						name: cmd.aliases.length > 1 ? '・Aliases' : '・Alias',
-						value: cmd.aliases.map(a => `\`${a}\``).join(', '),
-					}),
+					.setColor(message.client._config.color.default)
+					.setDescription(`My current prefix${message.client._config.prefix.length > 1 ? 'es are' : ' is'} ${message.client._config.prefix.map(prefix => `\`${prefix}\``).join(', ')}. Type \`${message.client._config.prefix[0]}help [command]\` to get information on a specific command.`)
+					.setFields(
+						{
+							name: 'Catogories',
+							value: categories.map(category => `・${category} commands`).join('\n'),
+							inline: true,
+						},
+						{
+							name: `${totalCommandCount} total command${totalCommandCount === 1 ? '' : 's'}`,
+							value: `${categories.map(category => `・${categoriesMap.get(category)} ${category.toLowerCase()} command${categoriesMap.get(category) === 1 ? '' : 's'}`)}`,
+							inline: true,
+						},
+					)
+					.setFooter({
+						text: `${message.author.username} [${message.author.globalName}]`,
+						iconURL: message.author.avatarURL() as string,
+					})
+					.setTimestamp(new Date())
+					.setTitle('Help menu'),
 			],
+			components: [row],
+		})).createMessageComponentCollector({
+			componentType: ComponentType.StringSelect,
+			filter: (interaction) => {
+				if (interaction.user.id != message.author.id) {
+					interaction.reply({
+						embeds: [
+							new EmbedBuilder()
+								.setColor(message.client._config.color.error)
+								.setDescription('You can not use this button as you are not the one who requested this menu.'),
+						],
+						ephemeral: true,
+					});
+					return false;
+				}
+				return true;
+			},
+			time: 5 * 60 * 1000,
+		}).on('collect', interaction => {
+			const embed = new EmbedBuilder()
+				.setColor(message.client._config.color.default)
+				.setFooter({
+					text: `${message.author.username} [${message.author.globalName}]`,
+					iconURL: message.author.avatarURL() as string,
+				})
+				.setTimestamp(new Date())
+				.setTitle(`${interaction.values[0]} commands`);
+			this.container.stores.get('commands').forEach(command => {
+				if (command.fullCategory[0] === interaction.values[0]) {
+					if ((command as Subcommand).options.subcommands?.length) {
+						(command as Subcommand).parsedSubcommandMappings.forEach(
+							subcommand => embed.addFields({
+								name: `${command.name} ${subcommand.name}`,
+								value: `・${command.description} [subcommand]`,
+							}),
+						);
+					}
+					else {
+						embed.addFields({
+							name: command.name,
+							value: `・${command.description} [command]`,
+						});
+					}
+				}
+			});
+			interaction.update({
+				embeds: [embed],
+			});
+		}).on('end', () => {
+			row.components.forEach(component => component.setDisabled(true));
+			msg.edit({
+				components: [row],
+			});
 		});
 	}
 }

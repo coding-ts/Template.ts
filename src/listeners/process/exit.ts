@@ -5,7 +5,7 @@ export class Exit extends Listener {
 	public constructor(context: Listener.Context, options: Listener.Options) {
 		super(context, {
 			...options,
-			event: 'exit',
+			name: 'exit',
 			emitter: process,
 			once: true,
 		});

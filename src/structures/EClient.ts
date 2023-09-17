@@ -1,6 +1,6 @@
-import { LogLevel, SapphireClient } from '@sapphire/framework';
-import { ActivityType, Partials } from 'discord.js';
+import { LogLevel, Logger, SapphireClient } from '@sapphire/framework';
 import config from '../config';
+import { ActivityType, Partials } from 'discord.js';
 
 export default class EClient extends SapphireClient {
 	public _config: typeof config;
@@ -13,40 +13,37 @@ export default class EClient extends SapphireClient {
 				],
 				repliedUser: false,
 			},
-			caseInsensitiveCommands: true,
-			caseInsensitivePrefixes: true,
 			defaultPrefix: config.prefix,
-			disableMentionPrefix: true,
-			failIfNotExists: false,
 			intents: [
 				'GuildMembers',
-				'GuildMessages',
-				'GuildVoiceStates',
 				'Guilds',
+				'GuildMessages',
 				'MessageContent',
 			],
+			caseInsensitiveCommands: true,
+			caseInsensitivePrefixes: true,
+			failIfNotExists: true,
 			loadDefaultErrorListeners: true,
+			loadApplicationCommandRegistriesStatusListeners: true,
 			loadMessageCommandListeners: true,
-			logger: {
-				level: LogLevel.Debug,
+			logger: new Logger(LogLevel.Debug),
+			presence: {
+				activities: [
+					{
+						name: 'Sapphire radio',
+						type: ActivityType.Listening,
+					},
+				],
 			},
 			partials: [
 				Partials.Channel,
 				Partials.GuildMember,
 				Partials.Message,
 			],
-			presence: {
-				activities: [
-					{
-						name: 'Musiz',
-						type: ActivityType.Listening,
-					},
-				],
-			},
 		});
 		this._config = config;
 	}
 	public start() {
-		return super.login(config.token);
+		return super.login(this._config.token);
 	}
 }

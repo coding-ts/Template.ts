@@ -1,12 +1,11 @@
-import { Listener } from '@sapphire/framework';
-import { Events } from 'discord.js';
+import { Events, Listener } from '@sapphire/framework';
 import type EClient from '../../structures/EClient';
 
 export class Ready extends Listener {
 	public constructor(context: Listener.Context, options: Listener.Options) {
 		super(context, {
 			...options,
-			event: Events.ClientReady,
+			name: Events.ClientReady,
 			once: true,
 		});
 	}
