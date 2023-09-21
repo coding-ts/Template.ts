@@ -14,6 +14,7 @@ export class Eval extends Subcommand {
 		super(context, {
 			...options,
 			name: 'eval',
+			aliases: ['evaluate', 'ev'],
 			description: 'Execute custom Typescript/Javascript code within the bot\'s environment',
 			flags: ['async', 'silent', 'hidden', 'delete'],
 			options: ['depth'],

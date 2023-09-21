@@ -14,7 +14,7 @@ export class Help extends Command {
 	public async messageRun(message: Message, args: Args) {
 		const query = await args.pick('string').then(value => value.toLowerCase()).catch(() => null);
 		if (query) {
-			const command = this.container.stores.get('commands').get(query as unknown as string);
+			const command = this.container.stores.get('commands').get(query as unknown as string) ?? this.container.stores.get('commands').find(cmd => cmd.aliases.includes(query));
 			if (!command) {
 				return message.reply({
 					embeds: [
@@ -136,7 +136,12 @@ export class Help extends Command {
 											value: `・${command.description}`,
 										};
 									}),
-								),
+								)
+								.setFooter({
+									text: `${message.author.username} [${message.author.globalName}]`,
+									iconURL: message.author.avatarURL() as string,
+								})
+								.setTimestamp(new Date()),
 						],
 						components: [
 							new ActionRowBuilder<ButtonBuilder>()
