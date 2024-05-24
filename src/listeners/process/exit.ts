@@ -2,7 +2,7 @@ import { Listener } from '@sapphire/framework';
 import { rmSync } from 'node:fs';
 
 export class Exit extends Listener {
-	public constructor(context: Listener.Context, options: Listener.Options) {
+	public constructor(context: Listener.LoaderContext, options: Listener.Options) {
 		super(context, {
 			...options,
 			name: 'exit',

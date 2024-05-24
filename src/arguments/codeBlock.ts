@@ -1,8 +1,8 @@
-import { Argument, ArgumentContext, PieceContext } from '@sapphire/framework';
+import { Argument, ArgumentContext } from '@sapphire/framework';
 import regexs from '../utils/regexs';
 
 export class Codeblock extends Argument<string> {
-	public constructor(context: PieceContext) {
+	public constructor(context: Argument.LoaderContext) {
 		super(context, { name: 'codeBlock' });
 	}
 	parser = new RegExp(regexs.codeBlockRegex, '');

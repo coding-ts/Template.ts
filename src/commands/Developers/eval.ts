@@ -2,12 +2,13 @@ import type { Args } from '@sapphire/framework';
 import { Subcommand } from '@sapphire/plugin-subcommands';
 import { ButtonBuilder, ButtonStyle, Message, codeBlock } from 'discord.js';
 import { inspect, promisify } from 'node:util';
-import HLJS from '../../utils/HLJS';
-import ProcessManager from '../../utils/ProcessManager';
+import HLJS from '../../utils/HLJS.js';
+import ProcessManager from '../../utils/ProcessManager.js';
 import Type from '@sapphire/type';
 import { isThenable } from '@sapphire/utilities';
 import { spawn, ChildProcessWithoutNullStreams, exec } from 'node:child_process';
 import ts from 'typescript';
+import fetch from 'node-fetch';
 
 export class Eval extends Subcommand {
 	public constructor(context: Subcommand.Context, options: Subcommand.Options) {
@@ -241,7 +242,7 @@ export class Eval extends Subcommand {
 		}
 		catch (error) {
 			success = false;
-			result = (error as Error).stack;
+			result = (error as Error).stack ?? error;
 		}
 		const type = new Type(result).toString();
 		if (isThenable(result)) result = await result;
