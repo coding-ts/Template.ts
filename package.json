@@ -1,32 +1,33 @@
 {
-  "name": "template.ts",
-  "version": "1.0.0",
-  "description": "Typescript template for discord.js v14 with Sapphire framework",
-  "main": "dist/index.js",
-  "scripts": {
-    "build": "tsc",
-    "run": "node ./dist/index.js",
-    "start": "npm run build && npm run run",
-    "lint": "eslint . --ext .ts",
-    "watch": "tsc-watch --noClear --onSuccess \"node ./dist/index.js\""
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@sapphire/framework": "^5.2.1",
-    "@sapphire/plugin-subcommands": "^6.0.3",
-    "@sapphire/type": "^2.4.4",
-    "@sapphire/utilities": "^3.16.2",
-    "discord.js": "^14.15.2",
-    "node-fetch": "^2.7.0"
-  },
-  "devDependencies": {
-    "@sapphire/ts-config": "^5.0.1",
-    "@types/node": "^20.12.12",
-    "@typescript-eslint/eslint-plugin": "^7.10.0",
-    "@typescript-eslint/parser": "^7.10.0",
-    "eslint": "^9.3.0",
-    "typescript": "^5.4.5"
-  }
+	"name": "template.ts",
+	"version": "1.0.0",
+	"description": "Typescript template for discord.js v14 with Sapphire framework",
+	"main": "dist/index.js",
+	"scripts": {
+		"build": "tsc",
+		"run": "node ./dist/index.js",
+		"start": "npm run build && npm run run",
+		"lint": "eslint . --ext .ts",
+		"watch": "tsc-watch --noClear --onSuccess \"node ./dist/index.js\""
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"@sapphire/framework": "^5.2.1",
+		"@sapphire/plugin-subcommands": "^6.0.3",
+		"@sapphire/type": "^2.4.4",
+		"@sapphire/utilities": "^3.16.2",
+		"discord.js": "^14.15.2",
+		"node-fetch": "^2.7.0"
+	},
+	"devDependencies": {
+		"@sapphire/ts-config": "^5.0.1",
+		"@types/node": "^20.12.12",
+		"@types/node-fetch": "^2.6.11",
+		"@typescript-eslint/eslint-plugin": "^7.10.0",
+		"@typescript-eslint/parser": "^7.10.0",
+		"eslint": "^8.57.0",
+		"typescript": "^5.4.5"
+	}
 }
